@@ -20,6 +20,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [mode, setMode] = useState<'login' | 'signup'>(initialMode);
 
   // Form state
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -43,7 +44,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setFirstName(res.firstName || '');
         setLastName(res.lastName || '');
         setEmail(res.email || '');
-        setInfoMessage('Google account connected! Please enter your phone number and delivery address to complete registration.');
+        if (res.email) {
+          setUsername(res.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, ''));
+        }
+        setInfoMessage('Google account connected! Please enter a username, contact phone, and delivery address to finish creating your account.');
       } else {
         handleClose();
         if (onSuccess) onSuccess();
@@ -51,7 +55,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } catch (err: any) {
       console.error('Google Sign-In notice:', err);
       if (err?.code !== 'auth/popup-closed-by-user') {
-        setError('Google Sign-In was cancelled or unavailable. You can sign in using email & password below.');
+        setError('Google Sign-In was cancelled or unavailable. You can sign in using username/email & password below.');
       }
     } finally {
       setSubmitting(false);
@@ -62,6 +66,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const resetForm = () => {
     setError(null);
     setInfoMessage(null);
+    setUsername('');
     setEmail('');
     setPassword('');
     setFirstName('');
@@ -81,6 +86,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setError(null);
 
     if (mode === 'signup') {
+      if (!username.trim()) {
+        setError('Please enter a username.');
+        return;
+      }
       if (!firstName.trim() || !lastName.trim()) {
         setError('Please enter your first and last name.');
         return;
@@ -107,7 +116,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
     } else {
       if (!email.trim() || !password) {
-        setError('Please enter your email and password.');
+        setError('Please enter your username or email and password.');
         return;
       }
     }
@@ -117,6 +126,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     try {
       if (mode === 'signup') {
         await signUp({
+          username: username.trim(),
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           email: email.trim(),
@@ -135,10 +145,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       console.error(err);
       if (err instanceof Error) {
         const msg = err.message;
-        if (msg.includes('user-not-found') || msg.includes('wrong-password') || msg.includes('invalid-credential')) {
-          setError('Incorrect email or password. Please try again.');
+        if (msg.includes('NO_ACCOUNT_FOUND') || msg.includes('Account not found') || msg.includes('user-not-found') || msg.includes('No registered account')) {
+          setMode('signup');
+          if (email.includes('@')) {
+            setEmail(email.trim());
+          } else {
+            setUsername(email.trim());
+          }
+          setInfoMessage('No account was found for this email or username. We have switched you to Sign Up so you can fill out the form and create your account!');
+          setError(null);
+          return;
+        } else if (msg.includes('wrong-password') || msg.includes('invalid-credential')) {
+          setError('Incorrect password. Please try again.');
         } else if (msg.includes('email-already-in-use') || msg.includes('already registered')) {
-          setError('This email is already registered. Please log in instead.');
+          setError('This email address is already registered. Please log in instead.');
         } else if (msg.includes('invalid-email')) {
           setError('Please enter a valid email address.');
         } else if (msg.includes('weak-password')) {
@@ -253,6 +273,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <form onSubmit={handleSubmit} className="space-y-3">
               {mode === 'signup' && (
                 <>
+                  {/* Username Field */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#5C5552] mb-1">
+                      Username *
+                    </label>
+                    <div className="relative">
+                      <User className="w-4 h-4 text-[#A89E9C] absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        required
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        placeholder="Choose a username (e.g. hanz123)"
+                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-[#FAF6F0] border border-[#E8E2DA] focus:outline-none focus:ring-2 focus:ring-[#F4A6B0]"
+                      />
+                    </div>
+                  </div>
+
                   {/* Name fields */}
                   <div className="grid grid-cols-2 gap-2.5">
                     <div>

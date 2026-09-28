@@ -15,6 +15,7 @@ import { auth, db, rtdb, handleFirestoreError, OperationType } from '../lib/fire
 import { CustomerUser, UserRole } from '../types';
 
 export interface SignUpData {
+  username?: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -435,17 +436,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const firstName = existingProfile?.firstName || nameParts[0] || '';
       const lastName = existingProfile?.lastName || nameParts.slice(1).join(' ') || '';
 
-      // Automatically establish or refresh user profile & role session
-      await fetchProfileAndRole(googleUser);
+      const isAccountExisted = !!(
+        existingProfile &&
+        (existingProfile.username || existingProfile.phone || existingProfile.address || existingProfile.createdAt)
+      );
 
-      return {
-        isNewUser: false,
-        user: googleUser,
-        profile: existingProfile || undefined,
-        email: emailNorm,
-        firstName,
-        lastName,
-      };
+      if (isAccountExisted) {
+        // Account already exists in database -> log in directly without showing signup form
+        await fetchProfileAndRole(googleUser);
+        return {
+          isNewUser: false,
+          user: googleUser,
+          profile: existingProfile || undefined,
+          email: emailNorm,
+          firstName,
+          lastName,
+        };
+      } else {
+        // Account does not exist in database yet -> direct user to complete registration form (username, phone, address)
+        return {
+          isNewUser: true,
+          user: googleUser,
+          profile: undefined,
+          email: emailNorm,
+          firstName,
+          lastName,
+        };
+      }
     } catch (error: any) {
       console.error('Google Sign-In failed:', error);
       throw error;
@@ -459,6 +476,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
    */
   const completeGoogleSignUp = async (data: {
     uid: string;
+    username?: string;
     email: string;
     firstName: string;
     lastName: string;
@@ -474,6 +492,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const customerRecord: CustomerUser = {
         id: data.uid,
+        username: data.username ? data.username.trim().toLowerCase() : undefined,
         firstName: data.firstName.trim(),
         lastName: data.lastName.trim(),
         email: emailNorm,
@@ -531,6 +550,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const initialRecord: CustomerUser = {
       id: 'pending',
+      username: data.username ? data.username.trim().toLowerCase() : undefined,
       firstName: data.firstName.trim(),
       lastName: data.lastName.trim(),
       email: emailNorm,
@@ -578,6 +598,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // 3. Create Customer Record
       const newCustomer: CustomerUser & { passwordHash?: string } = {
         id: customerId,
+        username: data.username ? data.username.trim().toLowerCase() : undefined,
         firstName: data.firstName.trim(),
         lastName: data.lastName.trim(),
         email: emailNorm,
