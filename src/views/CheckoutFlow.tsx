@@ -88,7 +88,7 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({
   useEffect(() => {
     let isMounted = true;
     setIsCheckingActiveOrder(true);
-    getActivePendingOrder(user?.uid, user?.email)
+    getActivePendingOrder(user?.uid || profile?.id, user?.email || profile?.email)
       .then((order) => {
         if (isMounted) {
           setActivePendingOrder(order);
@@ -102,7 +102,7 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [user]);
+  }, [user, profile]);
 
   const [submitting, setSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -131,7 +131,11 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({
 
   // Step 5: Verify & Submit Order to Firestore
   const handleSubmitOrder = async () => {
-    if (!user) {
+    const isCustomerLoggedIn = Boolean(user || profile);
+    const activeCustomerId = user?.uid || profile?.id || 'cust_guest';
+    const activeCustomerEmail = user?.email || profile?.email || email.trim().toLowerCase();
+
+    if (!isCustomerLoggedIn) {
       setValidationError('An account is required to place an order. Please log in or sign up first.');
       return;
     }
@@ -146,7 +150,7 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({
 
     try {
       // 1. Anti-Spam Check: Verify no active pending order exists on this device/account
-      const existingActive = await getActivePendingOrder(user.uid, user.email || email);
+      const existingActive = await getActivePendingOrder(activeCustomerId, activeCustomerEmail);
       if (existingActive) {
         setActivePendingOrder(existingActive);
         setValidationError(`You already have an active order (#${existingActive.id}) in progress. To prevent spam, our studio only accepts one active order at a time.`);
@@ -196,7 +200,7 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({
 
       const newOrder: Order = {
         id: orderId,
-        customerId: user.uid,
+        customerId: activeCustomerId,
         customerInfo: customerSnapshot,
         items: sanitizedItems,
         totalAmount: Number(subtotal),
@@ -292,7 +296,7 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({
   };
 
   // 1. Account Required Gate for Guests
-  if (!user) {
+  if (!user && !profile) {
     return (
       <div className="max-w-xl mx-auto px-4 sm:px-6 py-16 text-center">
         <motion.div

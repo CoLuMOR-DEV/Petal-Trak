@@ -55,9 +55,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (onSuccess) onSuccess();
       }
     } catch (err: any) {
-      console.error('Google Sign-In notice:', err);
-      if (err?.code !== 'auth/popup-closed-by-user') {
-        setError('Google Sign-In was cancelled or unavailable. You can sign in using username/email & password below.');
+      console.error('Google Sign-In error notice:', err);
+      if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
+        return;
+      }
+      if (err?.code === 'auth/unauthorized-domain' || err?.message?.includes('unauthorized domain')) {
+        setError('This published web domain needs to be added to Firebase Console (Authentication > Settings > Authorized Domains). In the meantime, please log in or sign up with your username/email and password below.');
+      } else if (err?.code === 'auth/popup-blocked' || err?.message?.includes('popup-blocked')) {
+        setError('Google popup was blocked by your mobile/browser settings. Please allow popups or sign in using username/email below.');
+      } else {
+        setError(err?.message || 'Google Sign-In was cancelled or unavailable. You can sign in using username/email & password below.');
       }
     } finally {
       setSubmitting(false);

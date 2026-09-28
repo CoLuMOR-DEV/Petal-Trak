@@ -25,7 +25,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onOpenAuth,
   onTrackOrder,
 }) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const isLoggedIn = Boolean(user || profile);
+  const activeUid = user?.uid || profile?.id;
+  const activeEmail = user?.email || profile?.email;
+
   const { items, subtotal, itemCount, updateQuantity, removeItem, clearCart } = useCart();
   const [activePendingOrder, setActivePendingOrder] = useState<Order | null>(null);
   const [checkingActiveOrder, setCheckingActiveOrder] = useState(false);
@@ -35,7 +39,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     let isMounted = true;
     if (isOpen) {
       setCheckingActiveOrder(true);
-      getActivePendingOrder(user?.uid, user?.email)
+      getActivePendingOrder(activeUid, activeEmail)
         .then((order) => {
           if (isMounted) {
             setActivePendingOrder(order);
@@ -49,7 +53,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, user]);
+  }, [isOpen, activeUid, activeEmail]);
 
   return (
     <AnimatePresence>
@@ -255,7 +259,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   <span>Track Active Order #{activePendingOrder.id}</span>
                 </button>
               </div>
-            ) : !user ? (
+            ) : !isLoggedIn ? (
               /* Case B: User is a guest (not logged in) */
               <div className="p-3.5 rounded-2xl bg-white border border-[#F0D9DD] space-y-2.5 shadow-2xs">
                 <div className="flex items-start gap-2">

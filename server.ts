@@ -478,6 +478,21 @@ interface OwnerCodeRecord {
 }
 const serverOwnerCodeStore = new Map<string, OwnerCodeRecord>();
 
+// Periodic memory cleanup to prevent memory allocation creep
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of passkeyAttempts.entries()) {
+    if (val.lockedUntil < now && val.failedCount === 0) {
+      passkeyAttempts.delete(key);
+    }
+  }
+  for (const [key, val] of serverOwnerCodeStore.entries()) {
+    if (val.expiresAt < now) {
+      serverOwnerCodeStore.delete(key);
+    }
+  }
+}, 5 * 60 * 1000).unref();
+
 interface TrustedDeviceRecord {
   tokenHash: string;
   uid: string;
