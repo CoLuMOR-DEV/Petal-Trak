@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Phone, MapPin, CheckCircle, AlertCircle, Sparkles, Loader2 } from 'lucide-react';
+import { X, User, Phone, MapPin, CheckCircle, AlertCircle, Sparkles, Loader2, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,8 +9,10 @@ interface EditProfileModalProps {
 }
 
 export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose }) => {
-  const { profile, updateCustomerProfile, role } = useAuth();
+  const { profile, user, updateCustomerProfile, role } = useAuth();
 
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
@@ -23,16 +25,18 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
 
   // Sync with current profile whenever modal opens or profile changes
   useEffect(() => {
-    if (profile) {
-      setFirstName(profile.firstName || '');
-      setLastName(profile.lastName || '');
-      setPhone(profile.phone || '');
-      setAddress(profile.address || '');
-      setAge(profile.age);
+    if (profile || user) {
+      setUsername(profile?.username || '');
+      setPassword('');
+      setFirstName(profile?.firstName || '');
+      setLastName(profile?.lastName || '');
+      setPhone(profile?.phone || '');
+      setAddress(profile?.address || '');
+      setAge(profile?.age);
       setError(null);
       setSuccess(false);
     }
-  }, [profile, isOpen]);
+  }, [profile, user, isOpen]);
 
   const addressLength = address.trim().length;
 
@@ -57,13 +61,20 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
       return;
     }
 
+    if (password && password.length < 6) {
+      setError('New password must be at least 6 characters long.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       await updateCustomerProfile({
+        username: username.trim().toLowerCase(),
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         phone: phone.trim(),
         address: address.trim(),
+        password: password ? password : undefined,
         age: age ? Number(age) : undefined,
       });
 
@@ -152,12 +163,49 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
                 <input
                   type="email"
                   disabled
-                  value={profile?.email || ''}
+                  value={profile?.email || user?.email || 'customer@lypetal.com'}
                   className="w-full px-3 py-2 text-xs rounded-xl bg-gray-100 border border-gray-200 text-gray-500 cursor-not-allowed"
                 />
                 <span className="text-[10px] text-[#A89E9C] mt-0.5 block">
                   {role === 'owner' ? 'Studio Owner Account' : 'Registered Customer Account'}
                 </span>
+              </div>
+
+              {/* Username field */}
+              <div>
+                <label className="block text-[11px] font-bold text-[#5C5552] mb-1">
+                  Username
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-[#A89E9C] absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Choose a unique username"
+                    className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-[#FAF6F0] border border-[#E8E2DA] focus:outline-none focus:ring-2 focus:ring-[#F4A6B0]"
+                  />
+                </div>
+              </div>
+
+              {/* Password field */}
+              <div>
+                <label className="block text-[11px] font-bold text-[#5C5552] mb-1">
+                  New Password (Optional)
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-[#A89E9C] absolute left-3 top-2.5" />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Set or change password (at least 6 characters)"
+                    className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-[#FAF6F0] border border-[#E8E2DA] focus:outline-none focus:ring-2 focus:ring-[#F4A6B0]"
+                  />
+                </div>
+                <p className="text-[10px] text-[#7C7472] mt-0.5">
+                  Set a password so you can also log in directly using your username or email.
+                </p>
               </div>
 
               {/* Name fields */}

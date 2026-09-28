@@ -16,8 +16,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   initialMode = 'login',
   onSuccess,
 }) => {
-  const { logIn, signUp, signInWithGoogle } = useAuth();
+  const { logIn, signUp, signInWithGoogle, completeGoogleSignUp, logOut, profile } = useAuth();
   const [mode, setMode] = useState<'login' | 'signup'>(initialMode);
+  const [googleUserObj, setGoogleUserObj] = useState<any | null>(null);
 
   // Form state
   const [username, setUsername] = useState('');
@@ -40,6 +41,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     try {
       const res = await signInWithGoogle();
       if (res.isNewUser) {
+        setGoogleUserObj(res.user);
         setMode('signup');
         setFirstName(res.firstName || '');
         setLastName(res.lastName || '');
@@ -47,7 +49,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (res.email) {
           setUsername(res.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, ''));
         }
-        setInfoMessage('Google account connected! Please enter a username, contact phone, and delivery address to finish creating your account.');
+        setInfoMessage('No account was found for this Google email. Please choose a username and password below to finish creating your account!');
       } else {
         handleClose();
         if (onSuccess) onSuccess();
@@ -66,6 +68,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const resetForm = () => {
     setError(null);
     setInfoMessage(null);
+    setGoogleUserObj(null);
     setUsername('');
     setEmail('');
     setPassword('');
@@ -77,6 +80,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   const handleClose = () => {
+    if (googleUserObj || (mode === 'signup' && !profile)) {
+      logOut().catch(() => {});
+    }
     resetForm();
     onClose();
   };
@@ -125,16 +131,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     try {
       if (mode === 'signup') {
-        await signUp({
-          username: username.trim(),
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          email: email.trim(),
-          phone: phone.trim(),
-          address: address.trim(),
-          age: age ? Number(age) : undefined,
-          password,
-        });
+        if (googleUserObj) {
+          await completeGoogleSignUp({
+            uid: googleUserObj.uid,
+            username: username.trim(),
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            email: email.trim(),
+            phone: phone.trim(),
+            address: address.trim(),
+            password,
+            age: age ? Number(age) : undefined,
+          });
+        } else {
+          await signUp({
+            username: username.trim(),
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            email: email.trim(),
+            phone: phone.trim(),
+            address: address.trim(),
+            age: age ? Number(age) : undefined,
+            password,
+          });
+        }
       } else {
         await logIn(email.trim(), password);
       }
@@ -285,7 +305,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         required
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
-                        placeholder="Choose a username (e.g. hanz123)"
+                        placeholder="Choose a username"
                         className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-[#FAF6F0] border border-[#E8E2DA] focus:outline-none focus:ring-2 focus:ring-[#F4A6B0]"
                       />
                     </div>

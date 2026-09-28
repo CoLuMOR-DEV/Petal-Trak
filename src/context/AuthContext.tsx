@@ -7,7 +7,8 @@ import {
   signInWithPopup,
   GoogleAuthProvider,
   signOut,
-  updateProfile
+  updateProfile,
+  updatePassword
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { ref, set, get } from 'firebase/database';
@@ -42,17 +43,19 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<GoogleAuthResult>;
   completeGoogleSignUp: (data: {
     uid: string;
+    username?: string;
     email: string;
     firstName: string;
     lastName: string;
     phone: string;
     address: string;
+    password?: string;
     age?: number;
   }) => Promise<CustomerUser>;
   signUp: (data: SignUpData) => Promise<void>;
   logIn: (email: string, password: string) => Promise<CustomerUser>;
   logOut: () => Promise<void>;
-  updateCustomerProfile: (data: Partial<CustomerUser>) => Promise<void>;
+  updateCustomerProfile: (data: Partial<CustomerUser> & { password?: string }) => Promise<void>;
   authenticateAsRole: (targetRole: 'customer' | 'owner') => Promise<void>;
 }
 
@@ -296,27 +299,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        const names = (currentUser.displayName || 'Flower Lover').trim().split(' ');
-        const newCustomer: CustomerUser = {
-          id: currentUser.uid,
-          firstName: localData?.firstName || names[0] || 'Customer',
-          lastName: localData?.lastName || names.slice(1).join(' ') || 'Guest',
-          email: currentUser.email || '',
-          phone: localData?.phone || '',
-          address: localData?.address || '',
-          role: 'customer',
-          createdAt: new Date().toISOString(),
-        };
-        if (localData?.age !== undefined && localData?.age !== null) {
-          newCustomer.age = localData.age;
-        }
-        safeFirestoreWrite(setDoc(custRef, cleanUserObject(newCustomer), { merge: true }), 2000).catch(() => {});
-        try {
-          set(ref(rtdb, `customers/${currentUser.uid}`), cleanUserObject(newCustomer)).catch(() => {});
-        } catch {}
-        setProfile(newCustomer);
-        setRole('customer');
-        localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(newCustomer));
+        // User has no existing database record or local profile -> leave profile null until registration is completed
+        setProfile(null);
+        setRole(null);
       }
     } catch (error) {
       console.error('Error fetching profile and role:', error);
@@ -482,6 +467,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     lastName: string;
     phone: string;
     address: string;
+    password?: string;
     age?: number;
   }): Promise<CustomerUser> => {
     setLoading(true);
@@ -490,7 +476,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const userRole: UserRole = isOwner ? 'owner' : 'customer';
 
     try {
-      const customerRecord: CustomerUser = {
+      const customerRecord: CustomerUser & { passwordHash?: string } = {
         id: data.uid,
         username: data.username ? data.username.trim().toLowerCase() : undefined,
         firstName: data.firstName.trim(),
@@ -498,6 +484,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: emailNorm,
         phone: data.phone.trim(),
         address: data.address.trim(),
+        passwordHash: data.password || undefined,
         age: data.age,
         role: userRole,
         createdAt: new Date().toISOString(),
@@ -644,50 +631,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logIn = async (email: string, password: string): Promise<CustomerUser> => {
+  const logIn = async (identifier: string, password: string): Promise<CustomerUser> => {
     setLoading(true);
-    const emailNorm = email.trim().toLowerCase();
-    const isOwner = checkIsOwnerEmail(emailNorm);
+    const identifierNorm = identifier.trim().toLowerCase();
+    const isOwner = checkIsOwnerEmail(identifierNorm);
 
     try {
-      // 1. Try Firebase Auth first
+      // 1. Try Firebase Auth if identifier contains @
       let firebaseUser: User | null = null;
-      try {
-        const cred = await signInWithEmailAndPassword(auth, emailNorm, password);
-        firebaseUser = cred.user;
-        await fetchProfileAndRole(cred.user);
-        const custRef = doc(db, 'customers', cred.user.uid);
-        const custSnap = await safeFirestoreRead(getDoc(custRef), 2200);
-        if (custSnap && custSnap.exists()) {
-          const profileData = { id: cred.user.uid, ...custSnap.data() } as CustomerUser;
-          localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(profileData));
-          return profileData;
-        }
-      } catch (authErr: any) {
-        console.warn('Firebase Auth direct login notice:', authErr?.code || authErr?.message);
-        if (authErr?.code === 'auth/wrong-password') {
-          throw new Error('Incorrect password. Please try again.');
+      if (identifierNorm.includes('@')) {
+        try {
+          const cred = await signInWithEmailAndPassword(auth, identifierNorm, password);
+          firebaseUser = cred.user;
+          await fetchProfileAndRole(cred.user);
+          const custRef = doc(db, 'customers', cred.user.uid);
+          const custSnap = await safeFirestoreRead(getDoc(custRef), 2200);
+          if (custSnap && custSnap.exists()) {
+            const profileData = { id: cred.user.uid, ...custSnap.data() } as CustomerUser;
+            localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(profileData));
+            return profileData;
+          }
+        } catch (authErr: any) {
+          if (authErr?.code === 'auth/wrong-password') {
+            throw new Error('Incorrect password. Please try again.');
+          }
         }
       }
 
-      // 2. Query Firestore customers collection
-      const custDocId = `cust_${(emailNorm || '').replace(/[^a-z0-9]/g, '_')}`;
+      // 2. Query Firestore customers collection by email OR username
+      const custDocId = `cust_${identifierNorm.replace(/[^a-z0-9]/g, '_')}`;
       let customerRecord: CustomerUser & { passwordHash?: string } | null = null;
 
-      // Check by ID with timeout
-      const directSnap = await safeFirestoreRead(getDoc(doc(db, 'customers', custDocId)), 2200);
-      if (directSnap && directSnap.exists()) {
-        customerRecord = directSnap.data() as CustomerUser & { passwordHash?: string };
-      } else {
-        try {
-          const q = query(collection(db, 'customers'), where('email', '==', emailNorm));
-          const qSnap = await safeFirestoreRead(getDocs(q), 2200);
-          if (qSnap && !qSnap.empty) {
-            customerRecord = qSnap.docs[0].data() as CustomerUser & { passwordHash?: string };
+      try {
+        const qEmail = query(collection(db, 'customers'), where('email', '==', identifierNorm));
+        const qSnapEmail = await safeFirestoreRead(getDocs(qEmail), 2200);
+        if (qSnapEmail && !qSnapEmail.empty) {
+          customerRecord = qSnapEmail.docs[0].data() as CustomerUser & { passwordHash?: string };
+        } else {
+          const qUser = query(collection(db, 'customers'), where('username', '==', identifierNorm));
+          const qSnapUser = await safeFirestoreRead(getDocs(qUser), 2200);
+          if (qSnapUser && !qSnapUser.empty) {
+            customerRecord = qSnapUser.docs[0].data() as CustomerUser & { passwordHash?: string };
+          } else {
+            const directSnap = await safeFirestoreRead(getDoc(doc(db, 'customers', custDocId)), 2200);
+            if (directSnap && directSnap.exists()) {
+              customerRecord = directSnap.data() as CustomerUser & { passwordHash?: string };
+            }
           }
-        } catch (queryErr) {
-          console.warn('Customer query notice:', queryErr);
         }
+      } catch (queryErr) {
+        console.warn('Customer query notice:', queryErr);
       }
 
       if (customerRecord) {
@@ -713,7 +706,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: firebaseUser?.uid || custDocId,
           firstName: 'Allyson',
           lastName: '(Studio Owner)',
-          email: emailNorm,
+          email: identifierNorm,
           phone: '+63 912 345 6789',
           address: 'LYPetal Studio, San Pedro, Laguna',
           role: 'owner',
@@ -721,7 +714,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
 
         safeFirestoreWrite(setDoc(doc(db, 'customers', ownerProfile.id), ownerProfile, { merge: true }), 2000).catch(() => {});
-        safeFirestoreWrite(setDoc(doc(db, 'admins', ownerProfile.id), { email: emailNorm, role: 'owner' }, { merge: true }), 2000).catch(() => {});
+        safeFirestoreWrite(setDoc(doc(db, 'admins', ownerProfile.id), { email: identifierNorm, role: 'owner' }, { merge: true }), 2000).catch(() => {});
 
         localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(ownerProfile));
         setProfile(ownerProfile);
@@ -729,22 +722,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return ownerProfile;
       }
 
-      // Fallback: Check local storage
+      // 3. Check LocalStorage fallback
       const savedSession = localStorage.getItem(LOCAL_SESSION_KEY);
       if (savedSession) {
         try {
-          const parsed = JSON.parse(savedSession) as CustomerUser;
-          if (parsed?.email && parsed.email.toLowerCase() === emailNorm) {
+          const parsed = JSON.parse(savedSession) as CustomerUser & { passwordHash?: string };
+          if (parsed && (
+            (parsed.email && parsed.email.toLowerCase() === identifierNorm) ||
+            (parsed.username && parsed.username.toLowerCase() === identifierNorm)
+          )) {
+            if (parsed.passwordHash && parsed.passwordHash !== password) {
+              throw new Error('Incorrect password. Please try again.');
+            }
             setProfile(parsed);
             setRole(parsed.role || 'customer');
             return parsed;
           }
-        } catch {
-          // ignore
+        } catch (e: any) {
+          if (e?.message?.includes('Incorrect password')) throw e;
         }
       }
 
-      throw new Error('Account not found with this email. Please click "Sign Up" above to register.');
+      throw new Error('NO_ACCOUNT_FOUND: No registered account found for this email or username.');
     } finally {
       setLoading(false);
     }
@@ -769,21 +768,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateCustomerProfile = async (data: Partial<CustomerUser>) => {
+  const updateCustomerProfile = async (data: Partial<CustomerUser> & { password?: string }) => {
     const currentId = user?.uid || profile?.id;
     if (!currentId) return;
+
+    const { password, ...profileFields } = data;
 
     // Immediately merge and update local profile and localStorage
     const updated = {
       ...(profile || {}),
-      ...data,
+      ...profileFields,
       id: currentId,
-      email: data.email || profile?.email || user?.email || '',
+      email: profileFields.email || profile?.email || user?.email || '',
       role: profile?.role || 'customer',
-    } as CustomerUser;
+      ...(password ? { passwordHash: password } : {}),
+    } as CustomerUser & { passwordHash?: string };
 
     setProfile(updated);
     localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(updated));
+
+    if (password && auth.currentUser) {
+      try {
+        await updatePassword(auth.currentUser, password);
+      } catch (passErr) {
+        console.warn('Firebase Auth password update notice:', passErr);
+      }
+    }
 
     try {
       const custRef = doc(db, 'customers', currentId);
