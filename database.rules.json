@@ -1,0 +1,57 @@
+{
+  "rules": {
+    "products": {
+      ".read": true,
+      ".write": true,
+      "$productId": {
+        ".validate": "newData.hasChildren(['basePrice']) ? (newData.child('basePrice').isNumber() && newData.child('basePrice').val() > 0) : true"
+      }
+    },
+    "inventory": {
+      ".read": true,
+      ".write": true
+    },
+    "studioSettings": {
+      ".read": true,
+      ".write": true
+    },
+    "orders": {
+      ".read": true,
+      ".write": true,
+      "$orderId": {
+        "messages": {
+          ".read": true,
+          ".write": true
+        }
+      }
+    },
+    "cancelledorders": {
+      ".read": true,
+      ".write": true,
+      "$orderId": {
+        "messages": {
+          ".read": true,
+          ".write": true
+        }
+      }
+    },
+    "customers": {
+      ".read": true,
+      "$customerId": {
+        ".write": true
+      }
+    },
+    "admins": {
+      ".read": true,
+      ".write": "auth != null && (auth.token.email === 'hanzgonzales125@gmail.com' || root.child('admins').child(auth.uid).exists())"
+    },
+    "carts": {
+      ".read": true,
+      ".write": true
+    },
+    "test": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}

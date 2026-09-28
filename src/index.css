@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-pale-yellow: #F5EFC0;
+    --color-blush-pink: #F0D9DD;
+    --color-sky-aqua: #A9D8E8;
+    --color-sage-mint: #A8D5C0;
+    --color-coral-pink: #F4A6B0;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    color: #2D2A2E;
+    background-color: #FCFAF8;
+  }
+
+  h1, h2, h3, .font-serif-title {
+    font-family: 'Playfair Display', Georgia, serif;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F5F1EC;
+}
+::-webkit-scrollbar-thumb {
+  background: #D8CFCE;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #C4B8B6;
+}
+
+@keyframes flowerFloat {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-6px) rotate(1.5deg); }
+}
+
+.animate-flower-float {
+  animation: flowerFloat 4s ease-in-out infinite;
+}

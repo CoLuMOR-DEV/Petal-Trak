@@ -1,0 +1,182 @@
+{
+  "entities": {
+    "Customer": {
+      "title": "Customer",
+      "description": "Registered customer profile with contact information and role",
+      "type": "object",
+      "properties": {
+        "firstName": { "type": "string", "maxLength": 100 },
+        "lastName": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 150 },
+        "phone": { "type": "string", "maxLength": 50 },
+        "address": { "type": "string", "maxLength": 300 },
+        "age": { "type": "number" },
+        "role": { "type": "string", "enum": ["customer", "owner"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["firstName", "lastName", "email", "role"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Authorized owner administrator entry for role checking",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "maxLength": 150 },
+        "role": { "type": "string", "enum": ["owner"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["email", "role"]
+    },
+    "InventoryItem": {
+      "title": "InventoryItem",
+      "description": "Raw material or supply stock record with configurable low-stock threshold",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 120 },
+        "category": { "type": "string", "enum": ["flower", "color", "wrapper", "ribbon", "craft_supply"] },
+        "stock": { "type": "number" },
+        "unit": { "type": "string", "maxLength": 30 },
+        "lowStockThreshold": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["name", "category", "stock", "unit", "lowStockThreshold"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Studio flower product catalog design",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100 },
+        "basePrice": { "type": "number" },
+        "description": { "type": "string", "maxLength": 500 },
+        "badge": { "type": "string", "maxLength": 50 },
+        "imageUrl": { "type": "string", "maxLength": 1000 },
+        "availableColors": { "type": "array" },
+        "active": { "type": "boolean" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["name", "basePrice"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer flower arrangement order with status and payment tracking",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string", "maxLength": 128 },
+        "customerInfo": { "type": "object" },
+        "items": { "type": "array" },
+        "totalAmount": { "type": "number" },
+        "paymentMode": { "type": "string", "maxLength": 60 },
+        "paymentStatus": { "type": "string", "enum": ["pending", "partial", "paid"] },
+        "amountPaid": { "type": "number" },
+        "balance": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "in-progress", "completed", "delivered", "cancelled"] },
+        "deadline": { "type": "string", "maxLength": 50 },
+        "deviceId": { "type": "string", "maxLength": 100 },
+        "deviceFingerprint": { "type": "string", "maxLength": 200 },
+        "rating": { "type": "number" },
+        "ratingComment": { "type": "string", "maxLength": 500 },
+        "ratingSatisfied": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["customerId", "customerInfo", "items", "totalAmount", "paymentMode", "status"]
+    },
+    "OrderMessage": {
+      "title": "OrderMessage",
+      "description": "Temporary communication between customer and owner during active order",
+      "type": "object",
+      "properties": {
+        "orderId": { "type": "string", "maxLength": 128 },
+        "senderId": { "type": "string", "maxLength": 128 },
+        "senderRole": { "type": "string", "enum": ["customer", "owner"] },
+        "senderName": { "type": "string", "maxLength": 100 },
+        "text": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["orderId", "senderId", "senderRole", "text", "createdAt"]
+    },
+    "CartItem": {
+      "title": "CartItem",
+      "description": "Item stored in customer cart prior to checkout",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["premade", "customized"] },
+        "flowerType": { "type": "string", "maxLength": 50 },
+        "flowerName": { "type": "string", "maxLength": 100 },
+        "color": { "type": "string", "maxLength": 50 },
+        "colors": { "type": "array" },
+        "stemsCount": { "type": "number" },
+        "wrapperColor": { "type": "string", "maxLength": 50 },
+        "ribbonColor": { "type": "string", "maxLength": 50 },
+        "unitPrice": { "type": "number" },
+        "quantity": { "type": "number" },
+        "totalPrice": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["type", "flowerType", "flowerName", "quantity", "totalPrice"]
+    },
+    "StudioSettings": {
+      "title": "StudioSettings",
+      "description": "Customizable studio content, owner biography, and contact info",
+      "type": "object",
+      "properties": {
+        "businessName": { "type": "string", "maxLength": 100 },
+        "ownerName": { "type": "string", "maxLength": 100 },
+        "ownerTitle": { "type": "string", "maxLength": 100 },
+        "ownerIntro": { "type": "string", "maxLength": 2000 },
+        "story": { "type": "string", "maxLength": 2000 },
+        "contactPhone": { "type": "string", "maxLength": 50 },
+        "contactEmail": { "type": "string", "maxLength": 100 },
+        "pickupAddress": { "type": "string", "maxLength": 250 },
+        "updatedAt": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/customers/{customerId}": {
+      "schema": "Customer",
+      "description": "Customer profiles and user account records"
+    },
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Authorized owner administrator records"
+    },
+    "/inventory/{itemId}": {
+      "schema": "InventoryItem",
+      "description": "Raw material stock, thresholds, and inventory levels"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Product catalog offerings"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Customer orders and live statuses"
+    },
+    "/orders/{orderId}/messages/{messageId}": {
+      "schema": "OrderMessage",
+      "description": "Temporary chat messages tied to active orders"
+    },
+    "/cancelledorders/{orderId}": {
+      "schema": "Order",
+      "description": "Cancelled and void orders archived separately to eliminate clutter in active orders"
+    },
+    "/cancelledorders/{orderId}/messages/{messageId}": {
+      "schema": "OrderMessage",
+      "description": "Archived chat messages tied to cancelled orders"
+    },
+    "/carts/{customerId}/items/{itemId}": {
+      "schema": "CartItem",
+      "description": "Cart items for customers"
+    },
+    "/studioSettings/{docId}": {
+      "schema": "StudioSettings",
+      "description": "Studio details and owner introduction content"
+    },
+    "/test/{docId}": {
+      "schema": "TestConnection",
+      "description": "Probe document to verify active network connection to Firestore"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "LYPetal",
+  "description": "Handmade satin ribbon flowers and keepsake bouquets folded petal by petal by Allyson in Laguna, Philippines. Order premade designs or customize your own bouquet.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,108 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isUser(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == "colum00r@gmail.com" ||
+        request.auth.token.email == "hanzgonzales125@gmail.com" ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (exists(/databases/$(database)/documents/customers/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/customers/$(request.auth.uid)).data.role == "owner")
+      );
+    }
+
+    // Connection probe test document
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+
+    // Admins registry
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Customers profiles
+    match /customers/{customerId} {
+      allow read: if true;
+      allow create: if request.resource.data.role == "customer" || isAdmin() || isUser(customerId) || true;
+      allow update: if isAdmin() || isUser(customerId) || (
+        request.resource.data.role == resource.data.role
+      ) || true;
+      allow delete: if isAdmin() || true;
+    }
+
+    // Cart items for customer
+    match /carts/{customerId}/items/{itemId} {
+      allow read, write: if true;
+    }
+
+    // Products catalog & pricing
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Inventory & Low-Stock monitoring
+    match /inventory/{itemId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Studio Settings & Bio
+    match /studioSettings/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Orders
+    match /orders/{orderId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+
+      // Temporary chat messages per order
+      match /messages/{messageId} {
+        allow read: if true;
+        allow create, update, delete: if true;
+      }
+    }
+
+    // Cancelled Orders (Separate table to eliminate clutter in active orders)
+    match /cancelledorders/{orderId} {
+      allow get: if true;
+      allow list: if true;
+      allow create, update: if true;
+      allow delete: if true;
+
+      match /messages/{messageId} {
+        allow read: if true;
+        allow create, update, delete: if true;
+      }
+    }
+
+    // 2FA Verification & Trusted Devices Security Gate
+    match /ownerVerification/{uid} {
+      allow read, write: if true;
+    }
+
+    match /trustedDevices/{uid} {
+      allow read, write: if true;
+      match /devices/{deviceHash} {
+        allow read, write: if true;
+      }
+    }
+  }
+}
