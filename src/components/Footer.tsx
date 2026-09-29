@@ -22,8 +22,8 @@ export const Footer: React.FC<FooterProps> = ({ setCurrentView, studioSettings }
           {/* Brand & Tagline */}
           <div className="md:col-span-5 space-y-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-[#F0D9DD]/15 flex items-center justify-center text-[#F4A6B0]">
-                <Flower2 className="w-4 h-4" />
+              <div className="w-8 h-8 rounded-xl bg-white/10 p-1 flex items-center justify-center">
+                <img src="/logo.svg" alt="LYPetal Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
               </div>
               <span className="font-serif-title text-lg font-bold tracking-tight text-white">
                 {businessName}

@@ -68,13 +68,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="flex items-center gap-2 sm:gap-3 cursor-pointer group select-none shrink-0"
             >
               <motion.div 
-                whileHover={{ rotate: 12, scale: 1.08 }}
+                whileHover={{ rotate: 10, scale: 1.08 }}
                 whileTap={{ scale: 0.94 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-                className="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr from-[#F0D9DD] via-[#F5EFC0] to-[#A8D5C0] p-0.5 shadow-2xs shrink-0"
+                className="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr from-[#F0D9DD] via-[#F5EFC0] to-[#A8D5C0] p-0.5 shadow-2xs shrink-0 overflow-hidden"
               >
-                <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center text-[#F4A6B0]">
-                  <Flower2 className="w-5 h-5 sm:w-6 sm:h-6 text-[#F4A6B0]" />
+                <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center p-1">
+                  <img
+                    src="/logo.svg"
+                    alt="LYPetal Logo"
+                    className="w-full h-full object-contain"
+                    referrerPolicy="no-referrer"
+                  />
                 </div>
               </motion.div>
               <div className="leading-none">
